@@ -127,7 +127,7 @@ def riebesell(x=0):
     riebesell_z=parameters["ilf_riebesell_curve"]["z"]
     return (x/riebesell_base_limit)**(math.log(1 + riebesell_z, 2))
 
-def main(tpl_data,brokerage_in_percent):
+def main(tpl_data):
     """
     Perform the rating calculations replicating 
     """
@@ -188,9 +188,9 @@ def main(tpl_data,brokerage_in_percent):
     model_data["net_prem"]["total"] = round(sum(value for value in model_data["net_prem"].values() if value is not None),0)
     print("Here model_data",model_data)
 
-    model_data["gross_prem"]["drones_hull"] = (model_data["net_prem"]["drones_hull"]/(1-(brokerage_in_percent/100)))
-    model_data["gross_prem"]["drones_tpl"] =(model_data["net_prem"]["drones_tpl"]/(1-(brokerage_in_percent/100)))
-    model_data["gross_prem"]["cameras_hull"] =(model_data["net_prem"]["cameras_hull"]/(1-(brokerage_in_percent/100)))
+    model_data["gross_prem"]["drones_hull"] = (model_data["net_prem"]["drones_hull"]/(1-model_data["brokerage"]))
+    model_data["gross_prem"]["drones_tpl"] =(model_data["net_prem"]["drones_tpl"]/(1-model_data["brokerage"]))
+    model_data["gross_prem"]["cameras_hull"] =(model_data["net_prem"]["cameras_hull"]/(1-model_data["brokerage"]))
     model_data["gross_prem"]["total"] = round(sum(value for value in model_data["gross_prem"].values() if value is not None),0)
     print("Here model_data", model_data)
 
@@ -199,6 +199,5 @@ if __name__ == '__main__':
     tpl_data=[{"serial_number": "AAA-111","tpl_limit":  1000000 ,"tpl_excess": None},
               {"serial_number":"BBB-222","tpl_limit": 4000000,"tpl_excess": 1000000},
               { "serial_number": "AAA-123","tpl_limit": 5000000,"tpl_excess": 5000000}]
-    brokerage_in_percent=30
-    main(tpl_data,brokerage_in_percent=brokerage_in_percent)
+    main(tpl_data)
 
