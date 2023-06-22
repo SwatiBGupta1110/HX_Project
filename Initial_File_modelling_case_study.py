@@ -2,7 +2,7 @@
 # Starter code for Modelling Case Study Exercise
 #
 import json
-import argparse
+import math
 
 with open('parameters.json') as file:
     parameters = json.load(file)
@@ -113,7 +113,21 @@ def get_example_data():
     return example_data
 
 
-def main(tpl_data):
+"""
+' Riebesell ILF
+Function Riebesell(riebesell_base_limit As Double, riebesell_z As Double, x As Double) As Double
+
+    Riebesell = (x / riebesell_base_limit) ^ Application.Log(1 + riebesell_z, 2)
+
+End
+"""
+#Riebesell ILF Function
+def riebesell(x=0):
+    riebesell_base_limit=parameters["ilf_riebesell_curve"]["base_limit"]
+    riebesell_z=parameters["ilf_riebesell_curve"]["z"]
+    return (x/riebesell_base_limit)**(math.log(1 + riebesell_z, 2))
+
+def main(tpl_data,brokerage_in_percent):
     """
     Perform the rating calculations replicating 
     """
@@ -140,18 +154,51 @@ def main(tpl_data):
                 drone["tpl_excess"] = tpl["tpl_excess"]
     # print("drones_data", drones_data)
 
+    considered_rate=[]
     # Getting "hull_weight_adjustment" for each drone
     for drone in drones_data:
         drone["hull_weight_adjustment"]=parameters["adjustments_for_maximum_take_off_weight"][drone["weight"]]
-
+        drone["hull_final_rate"]=round(drone["hull_base_rate"]*drone["hull_weight_adjustment"],1)
+        drone["hull_premium"]= round((drone["value"] * (drone["hull_final_rate"] / 100)),1)
+        drone["tpl_base_layer_premium"] =round((drone["value"]*(drone["tpl_base_rate"]/100)),1)
+        drone["tpl_excess"] = 0 if drone["tpl_excess"] is None else drone["tpl_excess"] #By using python Ternary Opeator
+        drone["tpl_ilf"] = round(riebesell(drone["tpl_limit"] + drone["tpl_excess"]) - riebesell(drone["tpl_excess"]),2)
+        drone["tpl_layer_premium"] = round(drone["tpl_base_layer_premium"]*drone["tpl_ilf"],1)
+        if drone["has_detachable_camera"]==True and drone["value"]>0:
+            considered_rate.append(drone["hull_final_rate"])
     print("drones_data", drones_data)
+    print("considered rate after filtering by given condition", considered_rate)
 
+    # Reassigning the calculated values for hull and tpl
+    model_data["drones"]=drones_data
 
+    camera_data=model_data["detachable_cameras"]
+
+    #Getting value for "hull_rate" in detachable_cameras
+    camera_data= [{**d, "hull_rate": max(considered_rate)} for d in camera_data]
+    print("camera_data",camera_data)
+
+    for d in camera_data:
+        d["hull_premium"]=round((d["value"] * (d["hull_rate"] / 100)),1)
+    print("camera_data", camera_data)
+
+    model_data["net_prem"]["drones_hull"]=sum([d["hull_premium"] for d in drones_data ])
+    model_data["net_prem"]["drones_tpl"] = sum([d["tpl_layer_premium"] for d in drones_data])
+    model_data["net_prem"]["cameras_hull"] = sum([d["hull_premium"] for d in camera_data])
+    model_data["net_prem"]["total"] = round(sum(value for value in model_data["net_prem"].values() if value is not None),0)
+    print("Here model_data",model_data)
+
+    model_data["gross_prem"]["drones_hull"] = (model_data["net_prem"]["drones_hull"]/(1-(brokerage_in_percent/100)))
+    model_data["gross_prem"]["drones_tpl"] =(model_data["net_prem"]["drones_tpl"]/(1-(brokerage_in_percent/100)))
+    model_data["gross_prem"]["cameras_hull"] =(model_data["net_prem"]["cameras_hull"]/(1-(brokerage_in_percent/100)))
+    model_data["gross_prem"]["total"] = round(sum(value for value in model_data["gross_prem"].values() if value is not None),0)
+    print("Here model_data", model_data)
 
 if __name__ == '__main__':
     # Passing tpl_limit and tpl_excess for drones
     tpl_data=[{"serial_number": "AAA-111","tpl_limit":  1000000 ,"tpl_excess": None},
               {"serial_number":"BBB-222","tpl_limit": 4000000,"tpl_excess": 1000000},
               { "serial_number": "AAA-123","tpl_limit": 5000000,"tpl_excess": 5000000}]
-    main(tpl_data)
+    brokerage_in_percent=30
+    main(tpl_data,brokerage_in_percent=brokerage_in_percent)
 
