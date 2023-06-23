@@ -162,7 +162,7 @@ def main(tpl_data):
         drone["hull_premium"]= round((drone["value"] * (drone["hull_final_rate"] / 100)),1)
         drone["tpl_base_layer_premium"] =round((drone["value"]*(drone["tpl_base_rate"]/100)),1)
         drone["tpl_excess"] = 0 if drone["tpl_excess"] is None else drone["tpl_excess"] #By using python Ternary Opeator
-        drone["tpl_ilf"] = round(riebesell(drone["tpl_limit"] + drone["tpl_excess"]) - riebesell(drone["tpl_excess"]),2)
+        drone["tpl_ilf"] = round(riebesell(drone["tpl_limit"] + drone["tpl_excess"]) - riebesell(drone["tpl_excess"]),15)
         drone["tpl_layer_premium"] = round(drone["tpl_base_layer_premium"]*drone["tpl_ilf"],1)
         if drone["has_detachable_camera"]==True and drone["value"]>0:
             considered_rate.append(drone["hull_final_rate"])
