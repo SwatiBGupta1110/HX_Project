@@ -58,6 +58,7 @@ def calculate_tpl_values(model_data_drones):
     # Calculate tpl_base_layer_premium, tpl_ilf, tpl_layer_premium
     for drone in model_data_drones:
         drone["tpl_base_layer_premium"] = round((drone["value"] * (drone["tpl_base_rate"] / 100)), 1)
+        drone["tpl_limit"] = 0 if drone["tpl_limit"] is None else drone["tpl_limit"]
         drone["tpl_excess"] = 0 if drone["tpl_excess"] is None else drone["tpl_excess"]
         drone["tpl_ilf"] = round(riebesell(drone["tpl_limit"] + drone["tpl_excess"]) -
                                  riebesell(drone["tpl_excess"]), 15)
