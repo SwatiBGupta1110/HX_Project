@@ -87,29 +87,26 @@ def calculate_detachable_camera_values(model_data_drones, model_data_camera):
 def extension1_recalculate_drone_premium(model_data_drones, max_drones_in_air, drones_dict):
     """
     This function calculates the values according to given extension 1 which is as follows:
-
     Customers may have a large number of drones but warrant that they will only fly a small number (n)
     at any one time. We would like to charge the full rate for the n drones with the highest calculated premiums,
     and a fixed base premium of £150 for the remaining drones.
     """
     total_drones = len(model_data_drones)
     drone_premium_acc_extension_1 = [{'serial_number': drone['serial_number'], 'hull_premium': drone['hull_premium']}
-                                     for drone in model_data_drones]
+                                     for drone in model_data_drones if drone['hull_premium'] is not None]
 
     sorted_drones = sorted(drone_premium_acc_extension_1, key=lambda drone: drone['hull_premium'], reverse=True)
-    # print("sorted drones\n", sorted_drones)
 
     if total_drones >= max_drones_in_air:
         sorted_drones = sorted_drones[max_drones_in_air:total_drones]
-    # print("sorted drones\n", sorted_drones)
+
     drone_serial_numbers = [drone['serial_number'] for drone in sorted_drones]
-    # print(drone_serial_numbers)
+
     for serial_number in drone_serial_numbers:
         drone = drones_dict.get(serial_number)
         drone["hull_premium"] = 150
 
     model_data_drones = list(drones_dict.values())
-    # print("model_data_drones\n",model_data_drones)
     return model_data_drones
 
 
@@ -133,7 +130,8 @@ def extension2_recalculate_camera_premium(model_data_drones, model_data_camera, 
         max_camera_in_air = max_drones_in_air
 
     camera_premium_acc_extension_2 = [{'serial_number': camera['serial_number'], 'hull_premium': camera['hull_premium']}
-                                      for camera in model_data_camera]
+                                      for camera in model_data_camera if camera['hull_premium'] is not None]
+
     # print("camera_premium_acc_extension_2",camera_premium_acc_extension_2)
     sorted_camera = sorted(camera_premium_acc_extension_2, key=lambda camera: camera['hull_premium'], reverse=True)
     # print("sorted_camera\n",sorted_camera)
@@ -157,9 +155,12 @@ def calculate_net_premium(model_data_drones, model_data_camera, model_data_net_p
     This function calculates all values related to Net Column for Premium Summary which are as follows:
     drones_hull, drones_tpl, cameras_hull, total
     """
-    model_data_net_prem["drones_hull"] = sum([drone["hull_premium"] for drone in model_data_drones])
-    model_data_net_prem["drones_tpl"] = sum([drone["tpl_layer_premium"] for drone in model_data_drones])
-    model_data_net_prem["cameras_hull"] = sum([camera["hull_premium"] for camera in model_data_camera])
+    model_data_net_prem["drones_hull"] = sum(
+        [drone["hull_premium"] for drone in model_data_drones if drone["hull_premium"] is not None])
+    model_data_net_prem["drones_tpl"] = sum(
+        [drone["tpl_layer_premium"] for drone in model_data_drones if drone["tpl_layer_premium"] is not None])
+    model_data_net_prem["cameras_hull"] = sum(
+        [camera["hull_premium"] for camera in model_data_camera if camera["hull_premium"] is not None])
     model_data_net_prem["total"] = round(sum(value for value in model_data_net_prem.values() if value is not None), 0)
 
     return model_data_net_prem
