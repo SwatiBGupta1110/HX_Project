@@ -1,9 +1,8 @@
 #
 # Starter code for Modelling Case Study Exercise
 #
-import json
-import math
 
+from Extension_File_modelling_case_study import *
 with open('parameters.json') as file:
     parameters = json.load(file)
 # print(parameters)
@@ -113,91 +112,75 @@ def get_example_data():
     return example_data
 
 
-"""
-' Riebesell ILF
-Function Riebesell(riebesell_base_limit As Double, riebesell_z As Double, x As Double) As Double
-
-    Riebesell = (x / riebesell_base_limit) ^ Application.Log(1 + riebesell_z, 2)
-
-End
-"""
-#Riebesell ILF Function
-def riebesell(x=0):
-    riebesell_base_limit=parameters["ilf_riebesell_curve"]["base_limit"]
-    riebesell_z=parameters["ilf_riebesell_curve"]["z"]
-    return (x/riebesell_base_limit)**(math.log(1 + riebesell_z, 2))
-
-def main(tpl_data):
+def main(tpl_of_drone,enable_extension_1=False,enable_extension_2=False):
     """
-    Perform the rating calculations replicating 
+    Perform the rating calculations replicating
     """
     # Your code here - replicate the spreadsheet model calculations on the data provided in model_data
+
     # Get the example data structure
     model_data = get_example_data()
-    # print("model_data", model_data)
-    # print(tpl_data)
-
-    drones_data = model_data["drones"]
-
-    # Getting Value for "hull_base_rate" from parameters
-    drones_data= [{**d, "hull_base_rate": parameters["base_rates_gross_in_percent"]["hull"]} for d in drones_data]
+    # print("model data", model_data)
+    # print("tpl data",tpl_data)
 
     # Getting Value for "tpl_base_rate" from parameters
-    drones_data= [{**d, "tpl_base_rate": parameters["base_rates_gross_in_percent"]["liability"]} for d in drones_data]
-    # print("drones_data",drones_data)
+    model_data["drones"] = [{**drone, "tpl_base_rate": parameters["base_rates_gross_in_percent"]["liability"]} for drone
+                            in model_data["drones"]]
+
+    # print('model_data["drones"] Value \n ',model_data["drones"])
+
+    drones_dict = {drone["serial_number"]: drone for drone in model_data["drones"]}
+    # print("drones_dict",drones_dict)
 
     # Getting Value for "tpl_limit"  and "tpl_excess" from user passed tpl_data
-    for drone in drones_data:
-        for tpl in tpl_data:
-            if drone["serial_number"]==tpl["serial_number"]:
-                drone["tpl_limit"]=tpl["tpl_limit"]
-                drone["tpl_excess"] = tpl["tpl_excess"]
-    # print("drones_data", drones_data)
+    for tpl in tpl_of_drone:
+        drone_values = drones_dict.get(tpl["serial_number"])
+        drone_values["tpl_limit"] = tpl["tpl_limit"]
+        drone_values["tpl_excess"] = tpl["tpl_excess"]
 
-    considered_rate=[]
-    # Getting "hull_weight_adjustment" for each drone
-    for drone in drones_data:
-        drone["hull_weight_adjustment"]=parameters["adjustments_for_maximum_take_off_weight"][drone["weight"]]
-        drone["hull_final_rate"]=round(drone["hull_base_rate"]*drone["hull_weight_adjustment"],1)
-        drone["hull_premium"]= round((drone["value"] * (drone["hull_final_rate"] / 100)),1)
-        drone["tpl_base_layer_premium"] =round((drone["value"]*(drone["tpl_base_rate"]/100)),1)
-        drone["tpl_excess"] = 0 if drone["tpl_excess"] is None else drone["tpl_excess"] #By using python Ternary Opeator
-        drone["tpl_ilf"] = round(riebesell(drone["tpl_limit"] + drone["tpl_excess"]) - riebesell(drone["tpl_excess"]),15)
-        drone["tpl_layer_premium"] = round(drone["tpl_base_layer_premium"]*drone["tpl_ilf"],1)
-        if drone["has_detachable_camera"]==True and drone["value"]>0:
-            considered_rate.append(drone["hull_final_rate"])
-    print("drones_data", drones_data)
-    print("considered rate after filtering by given condition", considered_rate)
+    model_data["drones"] = list(drones_dict.values())
+    # print("Created data structure", drones_dict)
+    # print("Original data structure\n",model_data)
 
-    # Reassigning the calculated values for hull and tpl
-    model_data["drones"]=drones_data
+    # Calculating Hull Table Values hull_base_rate, hull_weight_adjustment, hull_final_rate, hull_premium
+    model_data["drones"]=calculate_hull_values(model_data["drones"],parameters)
+    # print('model_data["drones"]\n',model_data["drones"])
 
-    camera_data=model_data["detachable_cameras"]
+    # Calculating TPL Table Values tpl_base_rate, tpl_base_layer_premium, tpl_ilf, tpl_layer_premium
+    model_data["drones"]=calculate_tpl_values(model_data["drones"])
+    # print('model_data["drones"]\n',model_data["drones"])
 
-    #Getting value for "hull_rate" in detachable_cameras
-    camera_data= [{**d, "hull_rate": max(considered_rate)} for d in camera_data]
-    print("camera_data",camera_data)
+    # Calculating hull_rate, hull_premium for detachable camera
+    model_data["detachable_cameras"]=calculate_detachable_camera_values(model_data["drones"], model_data["detachable_cameras"])
 
-    for d in camera_data:
-        d["hull_premium"]=round((d["value"] * (d["hull_rate"] / 100)),1)
-    print("camera_data", camera_data)
+    # Extension 1
+    drones_dict = {drone["serial_number"]: drone for drone in model_data["drones"]}
+    if enable_extension_1==True:
+        model_data["drones"]=extension1_recalculate_drone_premium(model_data["drones"],
+                                                                  model_data["max_drones_in_air"],
+                                                                  drones_dict)
 
-    model_data["net_prem"]["drones_hull"]=sum([d["hull_premium"] for d in drones_data ])
-    model_data["net_prem"]["drones_tpl"] = sum([d["tpl_layer_premium"] for d in drones_data])
-    model_data["net_prem"]["cameras_hull"] = sum([d["hull_premium"] for d in camera_data])
-    model_data["net_prem"]["total"] = round(sum(value for value in model_data["net_prem"].values() if value is not None),0)
-    print("Here model_data",model_data)
+    # Extension 2
+    camera_dict = {camera["serial_number"]: camera for camera in model_data["detachable_cameras"]}
+    if enable_extension_2==True:
+        model_data["detachable_cameras"]=extension2_recalculate_camera_premium(model_data["drones"],
+                                                                               model_data["detachable_cameras"],
+                                                                               model_data["max_drones_in_air"],
+                                                                               camera_dict)
 
-    model_data["gross_prem"]["drones_hull"] = (model_data["net_prem"]["drones_hull"]/(1-model_data["brokerage"]))
-    model_data["gross_prem"]["drones_tpl"] =(model_data["net_prem"]["drones_tpl"]/(1-model_data["brokerage"]))
-    model_data["gross_prem"]["cameras_hull"] =(model_data["net_prem"]["cameras_hull"]/(1-model_data["brokerage"]))
-    model_data["gross_prem"]["total"] = round(sum(value for value in model_data["gross_prem"].values() if value is not None),0)
-    print("Here model_data", model_data)
+    # Calculating net Premium Summary
+    model_data["net_prem"]=calculate_net_premium(model_data["drones"], model_data["detachable_cameras"],model_data["net_prem"])
+
+     # Calculating gross Premium Summary
+    model_data["gross_prem"]=calculate_gross_premium(model_data["net_prem"],model_data["gross_prem"],model_data["brokerage"])
+
+    #printing Final Model Data
+    print("Calculated model data: \n", model_data)
 
 if __name__ == '__main__':
     # Passing tpl_limit and tpl_excess for drones
-    tpl_data=[{"serial_number": "AAA-111","tpl_limit":  1000000 ,"tpl_excess": None},
+    tpl_of_drone=[{"serial_number": "AAA-111","tpl_limit":  1000000 ,"tpl_excess": None},
               {"serial_number":"BBB-222","tpl_limit": 4000000,"tpl_excess": 1000000},
               { "serial_number": "AAA-123","tpl_limit": 5000000,"tpl_excess": 5000000}]
-    main(tpl_data)
 
+    main(tpl_of_drone,enable_extension_1=False,enable_extension_2=True)
