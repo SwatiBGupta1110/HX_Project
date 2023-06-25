@@ -6,6 +6,8 @@ import math
 
 with open('parameters.json') as file:
     parameters = json.load(file)
+
+
 # print(parameters)
 
 def riebesell(x=0):
@@ -21,11 +23,12 @@ def riebesell(x=0):
     End
     ###############################################################################################
     """
-    riebesell_base_limit=parameters["ilf_riebesell_curve"]["base_limit"]
-    riebesell_z=parameters["ilf_riebesell_curve"]["z"]
-    return (x/riebesell_base_limit)**(math.log(1 + riebesell_z, 2))
+    riebesell_base_limit = parameters["ilf_riebesell_curve"]["base_limit"]
+    riebesell_z = parameters["ilf_riebesell_curve"]["z"]
+    return (x / riebesell_base_limit) ** (math.log(1 + riebesell_z, 2))
 
-def calculate_hull_values(model_data_drones,parameters):
+
+def calculate_hull_values(model_data_drones, parameters):
     """
     This function calculates all values related to Hull Table which are hull_base_rate, hull_weight_adjustment,
     hull_final_rate,hull_premium
@@ -33,7 +36,7 @@ def calculate_hull_values(model_data_drones,parameters):
 
     # Set Value for "hull_base_rate" from parameters
     model_data_drones = [{**drone, "hull_base_rate": parameters["base_rates_gross_in_percent"]["hull"]} for drone in
-                            model_data_drones]
+                         model_data_drones]
 
     # Calculate hull_weight_adjustment, hull_final_rate, hull_premium
     for drone in model_data_drones:
@@ -42,6 +45,7 @@ def calculate_hull_values(model_data_drones,parameters):
         drone["hull_premium"] = round((drone["value"] * (drone["hull_final_rate"] / 100)), 1)
     return model_data_drones
 
+
 def calculate_tpl_values(model_data_drones):
     """
        This function calculates all values related to TPL Table which are tpl_base_rate, tpl_base_layer_premium,
@@ -49,23 +53,23 @@ def calculate_tpl_values(model_data_drones):
        """
     # Set Value for "tpl_base_rate" from parameters
     model_data_drones = [{**drone, "tpl_base_rate": parameters["base_rates_gross_in_percent"]["liability"]} for drone
-                            in model_data_drones]
+                         in model_data_drones]
 
     # Calculate tpl_base_layer_premium, tpl_ilf, tpl_layer_premium
     for drone in model_data_drones:
         drone["tpl_base_layer_premium"] = round((drone["value"] * (drone["tpl_base_rate"] / 100)), 1)
         drone["tpl_excess"] = 0 if drone["tpl_excess"] is None else drone["tpl_excess"]
         drone["tpl_ilf"] = round(riebesell(drone["tpl_limit"] + drone["tpl_excess"]) -
-                                 riebesell(drone["tpl_excess"]),15)
+                                 riebesell(drone["tpl_excess"]), 15)
         drone["tpl_layer_premium"] = round(drone["tpl_base_layer_premium"] * drone["tpl_ilf"], 1)
     return model_data_drones
 
 
-def calculate_detachable_camera_values(model_data_drones,model_data_camera):
+def calculate_detachable_camera_values(model_data_drones, model_data_camera):
     """
            This function calculates all values related to detachable camera Table which are hull_rate,hull_premium
     """
-    considered_rate=[]
+    considered_rate = []
     for drone in model_data_drones:
         if drone["has_detachable_camera"] == True and drone["value"] > 0:
             considered_rate.append(drone["hull_final_rate"])
@@ -79,7 +83,7 @@ def calculate_detachable_camera_values(model_data_drones,model_data_camera):
     return model_data_camera
 
 
-def extension1_recalculate_drone_premium(model_data_drones,max_drones_in_air,drones_dict):
+def extension1_recalculate_drone_premium(model_data_drones, max_drones_in_air, drones_dict):
     """
     This function calculates the values according to given extension 1 which is as follows:
 
@@ -95,7 +99,7 @@ def extension1_recalculate_drone_premium(model_data_drones,max_drones_in_air,dro
     # print("sorted drones\n", sorted_drones)
 
     if total_drones >= max_drones_in_air:
-        sorted_drones=sorted_drones[max_drones_in_air:total_drones]
+        sorted_drones = sorted_drones[max_drones_in_air:total_drones]
     # print("sorted drones\n", sorted_drones)
     drone_serial_numbers = [drone['serial_number'] for drone in sorted_drones]
     # print(drone_serial_numbers)
@@ -103,12 +107,12 @@ def extension1_recalculate_drone_premium(model_data_drones,max_drones_in_air,dro
         drone = drones_dict.get(serial_number)
         drone["hull_premium"] = 150
 
-    model_data_drones= list(drones_dict.values())
+    model_data_drones = list(drones_dict.values())
     # print("model_data_drones\n",model_data_drones)
     return model_data_drones
 
 
-def extension2_recalculate_camera_premium(model_data_drones,model_data_camera,max_drones_in_air,camera_dict):
+def extension2_recalculate_camera_premium(model_data_drones, model_data_camera, max_drones_in_air, camera_dict):
     """
     This function calculates the values according to given extension 2 which is as follows:
 
@@ -117,7 +121,9 @@ def extension2_recalculate_camera_premium(model_data_drones,model_data_camera,ma
     and a fixed premium of £50 for the remaining cameras.
     """
     total_camera = len(model_data_camera)
-    total_drones_with_detachable_camera = len([drone["has_detachable_camera"] for drone in model_data_drones if drone["has_detachable_camera"]])
+    total_drones_with_detachable_camera = len(
+        list(filter(lambda drone: drone.get("has_detachable_camera") is True, model_data_drones)))
+
     # print("total_drones_with_detachable_camera",total_drones_with_detachable_camera)
 
     if total_drones_with_detachable_camera <= max_drones_in_air:
@@ -125,12 +131,11 @@ def extension2_recalculate_camera_premium(model_data_drones,model_data_camera,ma
     else:
         max_camera_in_air = max_drones_in_air
 
-
-    camera_premium_acc_extension_2=[{'serial_number': camera['serial_number'], 'hull_premium': camera['hull_premium']}
-                                    for camera in model_data_camera]
+    camera_premium_acc_extension_2 = [{'serial_number': camera['serial_number'], 'hull_premium': camera['hull_premium']}
+                                      for camera in model_data_camera]
     # print("camera_premium_acc_extension_2",camera_premium_acc_extension_2)
     sorted_camera = sorted(camera_premium_acc_extension_2, key=lambda camera: camera['hull_premium'], reverse=True)
-    #print("sorted_camera\n",sorted_camera)
+    # print("sorted_camera\n",sorted_camera)
 
     if total_camera >= max_camera_in_air:
         sorted_camera = sorted_camera[max_camera_in_air:total_camera]
@@ -145,7 +150,8 @@ def extension2_recalculate_camera_premium(model_data_drones,model_data_camera,ma
     # print("model_data_camera\n",model_data_camera)
     return model_data_camera
 
-def calculate_net_premium(model_data_drones, model_data_camera,model_data_net_prem):
+
+def calculate_net_premium(model_data_drones, model_data_camera, model_data_net_prem):
     """
     This function calculates all values related to Net Column for Premium Summary which are as follows:
     drones_hull, drones_tpl, cameras_hull, total
@@ -158,7 +164,7 @@ def calculate_net_premium(model_data_drones, model_data_camera,model_data_net_pr
     return model_data_net_prem
 
 
-def calculate_gross_premium(model_data_net_prem, model_data_gross_prem,brokerage):
+def calculate_gross_premium(model_data_net_prem, model_data_gross_prem, brokerage):
     """
     This function calculates all values related to Gross Column for Premium Summary which are as follows:
     drones_hull, drones_tpl, cameras_hull, total
@@ -170,6 +176,3 @@ def calculate_gross_premium(model_data_net_prem, model_data_gross_prem,brokerage
         sum(value for value in model_data_gross_prem.values() if value is not None), 0)
 
     return model_data_gross_prem
-
-
-
