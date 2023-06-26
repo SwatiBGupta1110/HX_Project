@@ -2,7 +2,7 @@
 # Starter code for Modelling Case Study Exercise
 #
 
-from Extension_File_modelling_case_study import *
+from modelling_case_study_functions import *
 
 with open('/HX_Project/parameters.json') as file:
     parameters = json.load(file)
@@ -187,12 +187,13 @@ def main(tpl_of_drone, enable_extension_1=False, enable_extension_2=False):
         print("Invalid Input Given")
         return model_data
 
+
 if __name__ == '__main__':
     # Passing tpl_limit and tpl_excess for drones
     tpl_of_drone = [{"serial_number": "AAA-111", "tpl_limit": 1000000, "tpl_excess": None},
                     {"serial_number": "BBB-222", "tpl_limit": 4000000, "tpl_excess": 1000000},
                     {"serial_number": "AAA-123", "tpl_limit": 5000000, "tpl_excess": 5000000}]
 
-    model_data=main(tpl_of_drone, enable_extension_1=False, enable_extension_2=False)
+    model_data = main(tpl_of_drone, enable_extension_1=False, enable_extension_2=False)
     # printing Final Model Data
     print("Calculated model data: \n", model_data)
