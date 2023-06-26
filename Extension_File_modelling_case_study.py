@@ -4,7 +4,7 @@
 import json
 import math
 
-with open('parameters.json') as file:
+with open('/HX_Project/parameters.json') as file:
     parameters = json.load(file)
 
 

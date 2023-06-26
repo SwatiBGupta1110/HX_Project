@@ -4,7 +4,7 @@
 
 from Extension_File_modelling_case_study import *
 
-with open('parameters.json') as file:
+with open('/HX_Project/parameters.json') as file:
     parameters = json.load(file)
 
 
@@ -182,11 +182,10 @@ def main(tpl_of_drone, enable_extension_1=False, enable_extension_2=False):
         model_data["gross_prem"] = calculate_gross_premium(model_data["net_prem"], model_data["gross_prem"],
                                                            model_data["brokerage"])
 
-        # printing Final Model Data
-        print("Calculated model data: \n", model_data)
+        return model_data
     else:
         print("Invalid Input Given")
-
+        return model_data
 
 if __name__ == '__main__':
     # Passing tpl_limit and tpl_excess for drones
@@ -194,4 +193,6 @@ if __name__ == '__main__':
                     {"serial_number": "BBB-222", "tpl_limit": 4000000, "tpl_excess": 1000000},
                     {"serial_number": "AAA-123", "tpl_limit": 5000000, "tpl_excess": 5000000}]
 
-    main(tpl_of_drone, enable_extension_1=False, enable_extension_2=False)
+    model_data=main(tpl_of_drone, enable_extension_1=False, enable_extension_2=False)
+    # printing Final Model Data
+    print("Calculated model data: \n", model_data)
